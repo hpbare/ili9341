@@ -1,0 +1,6 @@
+**/tests
+**/test
+**/build
+**/dist
+**/.vscode
+**/.devcontainer
