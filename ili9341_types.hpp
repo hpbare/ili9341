@@ -24,24 +24,11 @@ namespace ILI9341
         unsigned int delay_ms; /*<! Delay in milliseconds after this command */
     };
 
-    enum class ColorFormat
-    {
-        RGB565 = 0,
-        RGB666 = 1,
-    };
-
     /** @brief RGB element order. */
     enum class RGBElementOrder : uint8_t
     {
         RGB = 0, /*!< RGB element order: RGB */
         BGR = 1, /*!< RGB element order: BGR */
-    };
-
-    /** @brief RGB data endian. */
-    enum class RGBDataEndian
-    {
-        BIG = 0,    /*!< RGB data endian: MSB first */
-        LITTLE = 1, /*!< RGB data endian: LSB first */
     };
 
     enum class BitsPerPixel : uint8_t
@@ -54,7 +41,6 @@ namespace ILI9341
     {
         int resetGpioNum = -1;      /*!< GPIO used to reset the LCD panel, set to -1 if it's not used */
         ILI9341::RGBElementOrder    rgbOrder     = ILI9341::RGBElementOrder::RGB;
-        ILI9341::RGBDataEndian      dataEndian   = ILI9341::RGBDataEndian::BIG;
         ILI9341::BitsPerPixel       bitsPerPixel = ILI9341::BitsPerPixel::BPP16;
         const ILI9341::InitCommand  *initCmds    = nullptr;
         uint16_t                    initCmdsSize = 0;
@@ -69,9 +55,9 @@ namespace ILI9341
         size_t maxChunkBytes = 0; /* 0 = ask Hal::GetMaxTransferSize() */
         struct
         {
-            uint32_t dcHighOnCmd : 1;
-            uint32_t dcLowOnData : 1;
-            uint32_t dcLowOnParam : 1;
+            uint32_t dcCmdLevel   : 1;
+            uint32_t dcParamLevel : 1;
+            uint32_t dcDataLevel  : 1;
         } flags = {};
     };
 
@@ -110,14 +96,6 @@ namespace ILI9341
          *          - ILI9341_OK                on success.
          */
         virtual ILI9341::Status TxColor(int lcdCmd, const void *color, size_t color_size) = 0;
-        /**
-         * @brief Register LCD panel IO callbacks.
-         * @param[in] cbs structure with all LCD panel IO callbacks.
-         * @param[in] user_ctx User private data, passed directly to callback's user_ctx.
-         * @return
-         *          - ILI9341_ERROR_INVALID_ARG   if parameter is invalid.
-         *          - ILI9341_OK                on success.
-         */
     };
 
     class Hal
@@ -137,11 +115,11 @@ namespace ILI9341
         virtual ILI9341::Status SpiWrite(const uint8_t *data, size_t len) = 0;
 
         virtual ILI9341::Status SpiWriteAsync(const uint8_t *data, size_t len) {
-            return SpiWrite(data, len);
+            return this->SpiWrite(data, len);
         }
 
-        virtual void SpiWaitIdle() {
-            
+        virtual ILI9341::Status SpiWaitIdle() {
+            return ILI9341::Status::Ok;
         }
 
         // Max bytes the platform can transfer in a single SPI transaction
