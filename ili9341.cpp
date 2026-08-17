@@ -277,7 +277,17 @@ ILI9341::Status ILI9341::Panel::DispOnOff(bool on){
     return s;
 }
 
-// ILI9341::Status ILI9341::Panel::DispSleep(bool sleep) {
-//     int cmd = sleep ? ILI9341::Cmd::SLPIN : ILI9341::Cmd::SLPOUT;
-//     return this->io_.TxParam(cmd, nullptr, 0);
-// }
+ILI9341::Status ILI9341::Panel::DispSleep(bool sleep)
+{
+    int cmd = sleep ? ILI9341::Cmd::SLPIN : ILI9341::Cmd::SLPOUT;
+    ILI9341::Status s = this->io_.TxParam(cmd, nullptr, 0);
+    if (s != ILI9341::Status::Ok)
+    {
+        return s;
+    }
+    // Panel datasheet requires a delay after SLPIN/SLPOUT before further
+    // commands are accepted (5ms min after SLPOUT per spec; Init() already
+    // uses 100ms after SLPOUT for safety margin).
+    this->platform_.DelayMs(sleep ? 5 : 100);
+    return ILI9341::Status::Ok;
+}

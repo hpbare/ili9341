@@ -81,7 +81,7 @@ public:
      *          - ILI9341_OK on success.
      *          - ILI9341_ERROR_NOT_SUPPORTED if this function is not supported by the panel.
      */
-    // ILI9341::Status DispSleep(bool sleep);
+    ILI9341::Status DispSleep(bool sleep);
 private:
     ILI9341::Io     &io_;
     ILI9341::Hal    &platform_;
