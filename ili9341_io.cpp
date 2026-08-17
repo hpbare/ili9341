@@ -1,7 +1,5 @@
 #include "ili9341_io.hpp"
 
-constexpr unsigned int kDefaultDcCmdLevel = 0;
-
 ILI9341::SpiIo::SpiIo(ILI9341::Hal &hal, const ILI9341::SpiIoConfig &config)
     : hal_(hal), config_(config)
 {
@@ -38,7 +36,7 @@ ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t param
 
 ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t colorSize)
 {
-    ILI9341::Status s = TxParam(cmd, nullptr, 0);
+    ILI9341::Status s = this->TxParam(cmd, nullptr, 0);
     if (s != ILI9341::Status::Ok)
     {
         return s;

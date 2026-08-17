@@ -20,8 +20,8 @@ namespace ILI9341
     {
         int cmd;               /*<! The specific LCD command */
         const void *data;      /*<! Buffer holding the command's parameter bytes. Must remain valid until Panel::Init() returns — Panel does not copy it. */
-        size_t data_bytes;     /*<! Size of `data` in memory, in bytes */
-        unsigned int delay_ms; /*<! Delay in milliseconds after this command */
+        size_t dataBytes;      /*<! Size of `data` in memory, in bytes */
+        unsigned int delayMs;  /*<! Delay in milliseconds after this command */
     };
 
     /** @brief RGB element order. */
