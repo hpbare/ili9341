@@ -66,15 +66,15 @@ ILI9341::Panel::Panel(ILI9341::Io &io, ILI9341::Hal &platform, const ILI9341::Co
     }
 
     // RGB/BGR element order -> MADCTL BGR bit
-    madctlVal_ = (config_.rgbOrder == RGBElementOrder::BGR) ? ILI9341::Madctl::BGR : 0;
+    madctlVal_ = (config_.rgbOrder == RgbElementOrder::Bgr) ? ILI9341::Madctl::BGR : 0;
 
     // Pixel format -> COLMOD value + framebuffer bit depth
     switch (config_.bitsPerPixel) {
-    case BitsPerPixel::BPP16:
+    case BitsPerPixel::Bpp16:
         colmodVal_      = 0x55;
         fbBitsPerPixel_ = 16;
         break;
-    case BitsPerPixel::BPP18:
+    case BitsPerPixel::Bpp18:
         colmodVal_      = 0x66;
         fbBitsPerPixel_ = 24; // each R/G/B component occupies a full byte (6 high bits used)
         break;
@@ -287,9 +287,7 @@ ILI9341::Status ILI9341::Panel::DispSleep(bool sleep)
     {
         return s;
     }
-    // Panel datasheet requires a delay after SLPIN/SLPOUT before further
-    // commands are accepted (5ms min after SLPOUT per spec; Init() already
-    // uses 100ms after SLPOUT for safety margin).
-    this->platform_.DelayMs(sleep ? 5 : 100);
+
+    this->platform_.DelayMs(sleep ? 120 : 5);
     return ILI9341::Status::Ok;
 }
