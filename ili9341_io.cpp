@@ -9,9 +9,9 @@ ILI9341::SpiIo::SpiIo(ILI9341::Hal &hal, const ILI9341::SpiIoConfig &config)
     {
         this->config_.maxChunkBytes = this->hal_.GetMaxTransferSize();
     }
-    flags_.dcCmdLevel   = kDefaultDcCmdLevel;
-    flags_.dcParamLevel = kDefaultDcCmdLevel ? 0 : 1;
-    flags_.dcDataLevel  = kDefaultDcCmdLevel ? 0 : 1;
+    this->flags_.dcCmdLevel   = this->config_.flags.dcHighOnCmd  ? 1 : 0;
+    this->flags_.dcParamLevel = this->config_.flags.dcLowOnParam ? 1 : 0;
+    this->flags_.dcDataLevel  = this->config_.flags.dcLowOnData  ? 1 : 0;
 }
 
 ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t paramSize)
@@ -36,6 +36,34 @@ ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t param
     return ILI9341::Status::Ok;
 }
 
+/* Polling pattern */
+// ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t colorSize)
+// {
+//     ILI9341::Status s = TxParam(cmd, nullptr, 0);
+//     if (s != ILI9341::Status::Ok)
+//     {
+//         return s;
+//     }
+
+//     hal_.SetGpioLevel(this->config_.dcGpio, flags_.dcDataLevel);
+//     const uint8_t *p = static_cast<const uint8_t *>(color);
+//     size_t remaining = colorSize;
+//     while (remaining > 0)
+//     {
+//         size_t chunk = remaining < this->config_.maxChunkBytes ? remaining : this->config_.maxChunkBytes;
+//         s = hal_.SpiWrite(p, chunk);
+//         if (s != ILI9341::Status::Ok)
+//         {
+//             return s;
+//         }
+//         p += chunk;
+//         remaining -= chunk;
+//     }
+//     return ILI9341::Status::Ok;
+// }
+
+/* Queue + ISR pattern */
+
 ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t colorSize)
 {
     ILI9341::Status s = TxParam(cmd, nullptr, 0);
@@ -50,14 +78,17 @@ ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t color
     while (remaining > 0)
     {
         size_t chunk = remaining < this->config_.maxChunkBytes ? remaining : this->config_.maxChunkBytes;
-        s = hal_.SpiWrite(p, chunk);
+        s = hal_.SpiWriteAsync(p, chunk);
         if (s != ILI9341::Status::Ok)
         {
+            this->hal_.SpiWaitIdle();
             return s;
         }
         p += chunk;
         remaining -= chunk;
     }
+
+    this->hal_.SpiWaitIdle();
     return ILI9341::Status::Ok;
 }
 

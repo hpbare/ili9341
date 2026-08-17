@@ -136,6 +136,12 @@ namespace ILI9341
 
         virtual ILI9341::Status SpiWrite(const uint8_t *data, size_t len) = 0;
 
+        virtual ILI9341::Status SpiWriteAsync(const uint8_t *data, size_t len) {
+            return SpiWrite(data, len);
+        }
+
+        virtual void SpiWaitIdle() = 0;
+
         // Max bytes the platform can transfer in a single SPI transaction
         // (e.g. limited by DMA descriptor size). Used to chunk large color
         // buffers in SpiIo::TxColor.

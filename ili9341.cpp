@@ -55,7 +55,6 @@ namespace
 
 }
 
-/* = new panel */
 ILI9341::Panel::Panel(ILI9341::Io &io, ILI9341::Hal &platform, const ILI9341::Config &config)
     : io_(io), platform_(platform), config_(config)
 {
