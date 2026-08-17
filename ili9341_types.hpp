@@ -19,32 +19,33 @@ namespace ILI9341
     struct InitCommand
     {
         int cmd;               /*<! The specific LCD command */
-        const void *data;      /*<! Buffer that holds the command specific data */
+        const void *data;      /*<! Buffer holding the command's parameter bytes. Must remain valid until Panel::Init() returns — Panel does not copy it. */
         size_t data_bytes;     /*<! Size of `data` in memory, in bytes */
         unsigned int delay_ms; /*<! Delay in milliseconds after this command */
     };
 
     /** @brief RGB element order. */
-    enum class RGBElementOrder : uint8_t
+    enum class RgbElementOrder : uint8_t
     {
-        RGB = 0, /*!< RGB element order: RGB */
-        BGR = 1, /*!< RGB element order: BGR */
+        Rgb = 0, /*!< RGB element order: RGB */
+        Bgr = 1, /*!< RGB element order: BGR */
     };
 
     enum class BitsPerPixel : uint8_t
     {
-        BPP16 = 16, /*!< RGB565 */
-        BPP18 = 18, /*!< RGB666 */
+        Bpp16 = 16, /*!< RGB565 */
+        Bpp18 = 18, /*!< RGB666 */
     };
 
     struct Config
     {
-        int resetGpioNum = -1;      /*!< GPIO used to reset the LCD panel, set to -1 if it's not used */
-        ILI9341::RGBElementOrder    rgbOrder     = ILI9341::RGBElementOrder::RGB;
-        ILI9341::BitsPerPixel       bitsPerPixel = ILI9341::BitsPerPixel::BPP16;
-        const ILI9341::InitCommand  *initCmds    = nullptr;
-        uint16_t                    initCmdsSize = 0;
-        struct {
+        int resetGpioNum = -1; /*!< GPIO used to reset the LCD panel, set to -1 if it's not used */
+        ILI9341::RgbElementOrder rgbOrder = ILI9341::RgbElementOrder::Rgb;
+        ILI9341::BitsPerPixel bitsPerPixel = ILI9341::BitsPerPixel::Bpp16;
+        const ILI9341::InitCommand *initCmds = nullptr;
+        uint16_t initCmdsSize = 0;
+        struct
+        {
             uint32_t resetActiveHigh : 1; /*!< Setting this if the panel reset is high level active */
         } flags = {0};                    /*!< LCD panel config flags */
     };
@@ -55,10 +56,10 @@ namespace ILI9341
         size_t maxChunkBytes = 0; /* 0 = ask Hal::GetMaxTransferSize() */
         struct
         {
-            uint32_t dcCmdLevel   : 1;
-            uint32_t dcParamLevel : 1;
-            uint32_t dcDataLevel  : 1;
-        } flags = {};
+            uint8_t dcCmdLevel   : 1;
+            uint8_t dcParamLevel : 1;
+            uint8_t dcDataLevel  : 1;
+        } flags = {0, 1, 1};
     };
 
     class Io
@@ -102,29 +103,40 @@ namespace ILI9341
     {
     public:
         virtual ~Hal() = default;
-
-        // Block the calling task/thread for at least `ms` milliseconds.
+        /** @brief Block the calling task/thread for at least `ms` milliseconds. */
         virtual void DelayMs(uint32_t ms) = 0;
-
+        /** @brief Drive a GPIO pin high or low. Pin must already be configured as output. */
         virtual void SetGpioLevel(int gpio, bool level) = 0;
-
+        /** @brief Release a pin previously configured by ConfigureOutputPin/Reset, returning it to its default (unused) state. */
         virtual void ReleasePin(int gpio) = 0;
-
+        /** @brief Configure a GPIO pin as push-pull output. Called once before the pin is first used. */
         virtual void ConfigureOutputPin(int gpio) = 0;
-
+        /** @brief Blocking SPI write of exactly `len` bytes from `data`. Returns once the transfer completes. */
         virtual ILI9341::Status SpiWrite(const uint8_t *data, size_t len) = 0;
-
-        virtual ILI9341::Status SpiWriteAsync(const uint8_t *data, size_t len) {
+        /**
+         * @brief Non-blocking SPI write; queue-and-return so multiple chunks can pipeline.
+         * Default implementation falls back to the blocking SpiWrite().
+         */
+        virtual ILI9341::Status SpiWriteAsync(const uint8_t *data, size_t len)
+        {
             return this->SpiWrite(data, len);
         }
-
-        virtual ILI9341::Status SpiWaitIdle() {
+        /**
+         * @brief Block until all SpiWriteAsync() transfers queued so far have completed.
+         * Must be called before changing the DC line level or starting a different
+         * SPI transaction. Returns the status of the last completed transfer
+         * (ErrorIo if any queued transfer failed); default (blocking SpiWrite only) has
+         * nothing to wait for, so it always returns Ok.
+         */
+        virtual ILI9341::Status SpiWaitIdle()
+        {
             return ILI9341::Status::Ok;
         }
-
-        // Max bytes the platform can transfer in a single SPI transaction
-        // (e.g. limited by DMA descriptor size). Used to chunk large color
-        // buffers in SpiIo::TxColor.
+        /**
+         * @brief Max bytes the platform can transfer in a single SPI transaction
+         * (e.g. limited by DMA descriptor size). Used to chunk large color
+         * buffers in SpiIo::TxColor.
+         */
         virtual size_t GetMaxTransferSize() = 0;
     };
 
