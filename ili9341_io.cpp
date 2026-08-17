@@ -10,8 +10,8 @@ ILI9341::SpiIo::SpiIo(ILI9341::Hal &hal, const ILI9341::SpiIoConfig &config)
         this->config_.maxChunkBytes = this->hal_.GetMaxTransferSize();
     }
     this->flags_.dcCmdLevel   = this->config_.flags.dcHighOnCmd  ? 1 : 0;
-    this->flags_.dcParamLevel = this->config_.flags.dcLowOnParam ? 1 : 0;
-    this->flags_.dcDataLevel  = this->config_.flags.dcLowOnData  ? 1 : 0;
+    this->flags_.dcParamLevel = this->config_.flags.dcLowOnParam ? 0 : 1;
+    this->flags_.dcDataLevel  = this->config_.flags.dcLowOnData  ? 0 : 1;
 }
 
 ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t paramSize)

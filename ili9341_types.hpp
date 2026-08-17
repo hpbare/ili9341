@@ -72,7 +72,7 @@ namespace ILI9341
             uint32_t dcHighOnCmd : 1;
             uint32_t dcLowOnData : 1;
             uint32_t dcLowOnParam : 1;
-        } flags = {0};
+        } flags = {};
     };
 
     class Io
@@ -140,7 +140,9 @@ namespace ILI9341
             return SpiWrite(data, len);
         }
 
-        virtual void SpiWaitIdle() = 0;
+        virtual void SpiWaitIdle() {
+            
+        }
 
         // Max bytes the platform can transfer in a single SPI transaction
         // (e.g. limited by DMA descriptor size). Used to chunk large color
