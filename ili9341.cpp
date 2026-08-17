@@ -78,6 +78,8 @@ ILI9341::Panel::Panel(ILI9341::Io &io, ILI9341::Hal &platform, const ILI9341::Co
         colmodVal_      = 0x66;
         fbBitsPerPixel_ = 24; // each R/G/B component occupies a full byte (6 high bits used)
         break;
+    // default:
+    //     return ILI9341::Status::ErrorInvalidColorFormat
     }
 }
 
