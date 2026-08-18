@@ -322,6 +322,10 @@ ILI9341::Status ILI9341::Panel::DispSleep(bool sleep)
         return s;
     }
 
-    this->platform_.DelayMs(sleep ? 120 : 5);
+    /* 
+     * 120ms covers both the 5ms general restriction and the 120ms 
+     * requirement before issuing the opposite sleep command. 
+     */
+    this->platform_.DelayMs(120);
     return ILI9341::Status::Ok;
 }
