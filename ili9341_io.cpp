@@ -14,6 +14,10 @@ ILI9341::SpiIo::SpiIo(ILI9341::Hal &hal, const ILI9341::SpiIoConfig &config)
 
 ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t paramSize)
 {
+    // Drain any transfer left in flight by a previous TxColor() call before
+    // touching the DC pin or starting a new transaction on the bus.
+    this->hal_.SpiWaitIdle();
+
     if (cmd >= 0)
     {
         this->hal_.SetGpioLevel(this->config_.dcGpio, this->flags_.dcCmdLevel);
@@ -48,7 +52,8 @@ ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t color
     while (remaining > 0)
     {
         size_t chunk = remaining < this->config_.maxChunkBytes ? remaining : this->config_.maxChunkBytes;
-        s = this->hal_.SpiWriteAsync(p, chunk);
+        bool isLast = (chunk == remaining);
+        s = this->hal_.SpiWriteAsync(p, chunk, isLast);
         if (s != ILI9341::Status::Ok)
         {
             this->hal_.SpiWaitIdle();
@@ -58,7 +63,7 @@ ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t color
         remaining -= chunk;
     }
 
-    return this->hal_.SpiWaitIdle();
+    return ILI9341::Status::Ok;
 }
 
 ILI9341::Status ILI9341::SpiIo::RxParam(int cmd, void *param, size_t paramSize)

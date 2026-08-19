@@ -19,7 +19,7 @@ namespace ILI9341
     struct InitCommand
     {
         int cmd;               /*<! The specific LCD command */
-        const void *data;      /*<! Buffer holding the command's parameter bytes. Must remain valid until Panel::Init() returns — Panel does not copy it. */
+        const void *data;      /*<! Buffer holding the command's parameter bytes. Must remain valid until Panel::Init() returns - Panel does not copy it. */
         size_t dataBytes;      /*<! Size of `data` in memory, in bytes */
         unsigned int delayMs;  /*<! Delay in milliseconds after this command */
     };
@@ -103,6 +103,9 @@ namespace ILI9341
     {
     public:
         virtual ~Hal() = default;
+
+        using TransDoneCallback = void (*)(void *userCtx);
+
         /** @brief Block the calling task/thread for at least `ms` milliseconds. */
         virtual void DelayMs(uint32_t ms) = 0;
         /** @brief Drive a GPIO pin high or low. Pin must already be configured as output. */
@@ -115,22 +118,36 @@ namespace ILI9341
         virtual ILI9341::Status SpiWrite(const uint8_t *data, size_t len) = 0;
         /**
          * @brief Non-blocking SPI write; queue-and-return so multiple chunks can pipeline.
-         * Default implementation falls back to the blocking SpiWrite().
+         * @param isLastChunk True on the final chunk of a TxColor() transfer. Platforms that
+         * implement RegisterTransDoneCallback() must fire that callback only when the
+         * transaction carrying isLastChunk=true has actually completed on the bus.
+         * Default implementation falls back to the blocking SpiWrite() and ignores this flag.
          */
-        virtual ILI9341::Status SpiWriteAsync(const uint8_t *data, size_t len)
+        virtual ILI9341::Status SpiWriteAsync(const uint8_t *data, size_t len, bool isLastChunk)
         {
+            (void)isLastChunk;
             return this->SpiWrite(data, len);
         }
         /**
          * @brief Block until all SpiWriteAsync() transfers queued so far have completed.
          * Must be called before changing the DC line level or starting a different
-         * SPI transaction. Returns the status of the last completed transfer
-         * (ErrorIo if any queued transfer failed); default (blocking SpiWrite only) has
-         * nothing to wait for, so it always returns Ok.
+         * SPI transaction. Default (blocking SpiWrite only) has nothing to wait for.
          */
         virtual ILI9341::Status SpiWaitIdle()
         {
             return ILI9341::Status::Ok;
+        }
+        /**
+         * @brief Register a callback fired when a SpiWriteAsync() chain has completed
+         * on the bus (isLastChunk transaction done) - typically invoked from an
+         * ISR/DMA-done context, so implementations must keep it minimal and
+         * interrupt-safe. Optional: platforms without async DMA support can leave
+         * this unimplemented; SpiIo does not depend on it directly.
+         */
+        virtual void RegisterTransDoneCallback(TransDoneCallback cb, void *userCtx)
+        {
+            (void)cb;
+            (void)userCtx;
         }
         /**
          * @brief Max bytes the platform can transfer in a single SPI transaction
