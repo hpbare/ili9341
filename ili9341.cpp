@@ -29,25 +29,35 @@ namespace
     constexpr uint8_t kEntryModeSet[]       = {0x07};
     constexpr uint8_t kDisplayFuncCtrl[]    = {0x08, 0x82, 0x27};
 
+    constexpr uint8_t kMadctl[]              = {0x00};             // default: no mirror/swap, RGB order set by Panel ctor
+    constexpr uint8_t kColmod16[]            = {0x55};             // RGB565
+    constexpr uint8_t kColmod18[]            = {0x66};             // RGB666
+
+    // NOTE: kMadctl and kColmod* are placeholder arrays; the actual values
+    // are patched at runtime in Panel::Init() using the pointers stored in
+    // the command table - but the default init sequence hard-codes them here
+    // for clarity.  Custom initCmds must not include MADCTL/COLMOD unless the
+    // caller intentionally wants to override the Config values.
+
     constexpr ILI9341::InitCommand kDefaultInitCmds[] = {
         // {cmd, data, dataBytes, delayMs}
-        {0xCF, kPowerCtrlB, sizeof(kPowerCtrlB), 0},               // Power control B
-        {0xED, kPowerOnSeqCtrl, sizeof(kPowerOnSeqCtrl), 0},       // Power on sequence control
-        {0xE8, kDriverTimingCtrlA, sizeof(kDriverTimingCtrlA), 0}, // Driver timing control A
-        {0xCB, kPowerCtrlA, sizeof(kPowerCtrlA), 0},               // Power control A
-        {0xF7, kPumpRatioCtrl, sizeof(kPumpRatioCtrl), 0},         // Pump ratio control
-        {0xEA, kDriverTimingCtrl, sizeof(kDriverTimingCtrl), 0},   // Driver timing control
-        {0xC0, kPowerCtrl1, sizeof(kPowerCtrl1), 0},               // Power control 1
-        {0xC1, kPowerCtrl2, sizeof(kPowerCtrl2), 0},               // Power control 2
-        {0xC5, kVcomCtrl1, sizeof(kVcomCtrl1), 0},                 // VCOM control 1
-        {0xC7, kVcomCtrl2, sizeof(kVcomCtrl2), 0},                 // VCOM control 2
-        {0xB1, kFrameRateCtrl, sizeof(kFrameRateCtrl), 0},         // Frame rate control
-        {0xF2, kEnable3G, sizeof(kEnable3G), 0},                   // Enable 3G, disabled
-        {0x26, kGammaSet, sizeof(kGammaSet), 0},                   // Gamma set, curve 1
-        {0xE0, kPositiveGamma, sizeof(kPositiveGamma), 0},         // Positive gamma correction
-        {0xE1, kNegativeGamma, sizeof(kNegativeGamma), 0},         // Negative gamma correction
-        {0xB7, kEntryModeSet, sizeof(kEntryModeSet), 0},           // Entry mode set
-        {0xB6, kDisplayFuncCtrl, sizeof(kDisplayFuncCtrl), 0},     // Display function control
+        {0xCF, kPowerCtrlB,        sizeof(kPowerCtrlB),        0},
+        {0xED, kPowerOnSeqCtrl,    sizeof(kPowerOnSeqCtrl),    0},
+        {0xE8, kDriverTimingCtrlA, sizeof(kDriverTimingCtrlA), 0},
+        {0xCB, kPowerCtrlA,        sizeof(kPowerCtrlA),        0},
+        {0xF7, kPumpRatioCtrl,     sizeof(kPumpRatioCtrl),     0},
+        {0xEA, kDriverTimingCtrl,  sizeof(kDriverTimingCtrl),  0},
+        {0xC0, kPowerCtrl1,        sizeof(kPowerCtrl1),        0},
+        {0xC1, kPowerCtrl2,        sizeof(kPowerCtrl2),        0},
+        {0xC5, kVcomCtrl1,         sizeof(kVcomCtrl1),         0},
+        {0xC7, kVcomCtrl2,         sizeof(kVcomCtrl2),         0},
+        {0xB1, kFrameRateCtrl,     sizeof(kFrameRateCtrl),     0},
+        {0xF2, kEnable3G,          sizeof(kEnable3G),          0},
+        {0x26, kGammaSet,          sizeof(kGammaSet),          0},
+        {0xE0, kPositiveGamma,     sizeof(kPositiveGamma),     0},
+        {0xE1, kNegativeGamma,     sizeof(kNegativeGamma),     0},
+        {0xB7, kEntryModeSet,      sizeof(kEntryModeSet),      0},
+        {0xB6, kDisplayFuncCtrl,   sizeof(kDisplayFuncCtrl),   0},
     };
 
     constexpr size_t kDefaultInitCmdsSize = sizeof(kDefaultInitCmds) / sizeof(kDefaultInitCmds[0]);
@@ -68,19 +78,19 @@ ILI9341::Panel::Panel(ILI9341::Io &io, ILI9341::Hal &platform, const ILI9341::Co
     // RGB/BGR element order -> MADCTL BGR bit
     this->madctlVal_ = (this->config_.rgbOrder == RgbElementOrder::Bgr) ? ILI9341::Madctl::BGR : 0;
 
-    // Pixel format -> COLMOD value + framebuffer bit depth
+    // Pixel format -> COLMOD value + framebuffer bytes per pixel
     switch (this->config_.bitsPerPixel)
     {
     case BitsPerPixel::Bpp16:
-        colmodVal_ = 0x55;
-        fbBitsPerPixel_ = 16;
+        colmodVal_      = 0x55;
+        bytesPerPixel_  = 2;   // 16 bits / 8
         break;
     case BitsPerPixel::Bpp18:
-        colmodVal_ = 0x66;
-        fbBitsPerPixel_ = 24; // each R/G/B component occupies a full byte (6 high bits used)
-        break;
+        colmodVal_      = 0x66;
+        bytesPerPixel_  = 3;   // 18-bit uses 3 bytes per pixel (6 high bits each)
         // default:
-        //     return ILI9341::Status::ErrorInvalidColorFormat
+        //     return ILI9341::Status::ErrorInvalidColorFormat;
+        break;
     }
 }
 
@@ -125,6 +135,11 @@ ILI9341::Status ILI9341::Panel::Init(void)
     }
     this->platform_.DelayMs(100);
 
+    /* Send MADCTL (memory access control) and COLMOD (pixel format) first.
+     * These are always sent from the Panel's own config values so the display
+     * matches the RgbOrder / BitsPerPixel the caller specified, regardless of
+     * whether a custom initCmds table is provided. Custom initCmds must NOT
+     * include MADCTL or COLMOD unless intentionally overriding these values. */
     uint8_t madctl_param[] = {this->madctlVal_};
     s = this->io_.TxParam(ILI9341::Cmd::MADCTL, madctl_param, sizeof(madctl_param));
     if (s != ILI9341::Status::Ok)
@@ -242,8 +257,11 @@ ILI9341::Status ILI9341::Panel::DrawBitmap(int xStart, int yStart, int xEnd, int
     {
         return s;
     }
-    /* Transfer frame buffer */
-    size_t len = (xEnd - xStart) * (yEnd - yStart) * this->fbBitsPerPixel_ / 8;
+    /* Transfer frame buffer: bytesPerPixel_ is pre-computed in the ctor,
+     * avoiding a division here in the hot path. */
+    size_t len = static_cast<size_t>(xEnd - xStart)
+               * static_cast<size_t>(yEnd - yStart)
+               * this->bytesPerPixel_;
 
     s = this->io_.TxColor(ILI9341::Cmd::RAMWR, colorData, len);
     return s;

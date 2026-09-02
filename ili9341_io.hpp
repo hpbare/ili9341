@@ -13,14 +13,8 @@ namespace ILI9341
         ILI9341::Status RxParam(int cmd, void *param, size_t paramSize) override;
 
     private:
-        Hal &hal_;
-        SpiIoConfig config_;
-        struct
-        {
-            unsigned int dcCmdLevel : 1;   // Indicates the level of DC line when transferring command
-            unsigned int dcDataLevel : 1;  // Indicates the level of DC line when transferring color data
-            unsigned int dcParamLevel : 1; // Indicates the level of DC line when transferring parameters
-        } flags_;
+        Hal         &hal_;
+        SpiIoConfig config_; // DC-pin levels are read directly from config_.flags
     };
 
 }

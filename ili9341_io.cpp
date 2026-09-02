@@ -7,20 +7,20 @@ ILI9341::SpiIo::SpiIo(ILI9341::Hal &hal, const ILI9341::SpiIoConfig &config)
     {
         this->config_.maxChunkBytes = this->hal_.GetMaxTransferSize();
     }
-    this->flags_.dcCmdLevel   = this->config_.flags.dcCmdLevel   ? 1 : 0;
-    this->flags_.dcParamLevel = this->config_.flags.dcParamLevel ? 1 : 0;
-    this->flags_.dcDataLevel  = this->config_.flags.dcDataLevel  ? 1 : 0;
+    // config_.flags.dcCmdLevel / dcParamLevel / dcDataLevel are used directly
+    // in TxParam / TxColor – no need to copy them into a separate flags_ field.
 }
 
 ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t paramSize)
 {
-    // Drain any transfer left in flight by a previous TxColor() call before
-    // touching the DC pin or starting a new transaction on the bus.
+    /* Drain any in-flight SpiWriteAsync() transfer before touching the DC pin
+     * or starting a new SPI transaction – changing DC mid-transfer corrupts
+     * the current pixel burst. */
     this->hal_.SpiWaitIdle();
 
     if (cmd >= 0)
     {
-        this->hal_.SetGpioLevel(this->config_.dcGpio, this->flags_.dcCmdLevel);
+        this->hal_.SetGpioLevel(this->config_.dcGpio, this->config_.flags.dcCmdLevel);
         uint8_t cmdByte = static_cast<uint8_t>(cmd);
         ILI9341::Status s = this->hal_.SpiWrite(&cmdByte, 1);
         if (s != ILI9341::Status::Ok)
@@ -31,7 +31,7 @@ ILI9341::Status ILI9341::SpiIo::TxParam(int cmd, const void *param, size_t param
 
     if (param && paramSize)
     {
-        this->hal_.SetGpioLevel(this->config_.dcGpio, this->flags_.dcParamLevel);
+        this->hal_.SetGpioLevel(this->config_.dcGpio, this->config_.flags.dcParamLevel);
         return this->hal_.SpiWrite(static_cast<const uint8_t *>(param), paramSize);
     }
 
@@ -46,20 +46,20 @@ ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t color
         return s;
     }
 
-    this->hal_.SetGpioLevel(this->config_.dcGpio, this->flags_.dcDataLevel);
+    this->hal_.SetGpioLevel(this->config_.dcGpio, this->config_.flags.dcDataLevel);
     const uint8_t *p = static_cast<const uint8_t *>(color);
     size_t remaining = colorSize;
     while (remaining > 0)
     {
-        size_t chunk = remaining < this->config_.maxChunkBytes ? remaining : this->config_.maxChunkBytes;
-        bool isLast = (chunk == remaining);
+        size_t chunk  = remaining < this->config_.maxChunkBytes ? remaining : this->config_.maxChunkBytes;
+        bool   isLast = (chunk == remaining);
         s = this->hal_.SpiWriteAsync(p, chunk, isLast);
         if (s != ILI9341::Status::Ok)
         {
             this->hal_.SpiWaitIdle();
             return s;
         }
-        p += chunk;
+        p         += chunk;
         remaining -= chunk;
     }
 
@@ -68,5 +68,12 @@ ILI9341::Status ILI9341::SpiIo::TxColor(int cmd, const void *color, size_t color
 
 ILI9341::Status ILI9341::SpiIo::RxParam(int cmd, void *param, size_t paramSize)
 {
+    /* Read-back via SPI is not implemented. The ILI9341 SPI interface
+     * requires a dummy clock cycle before read data, and many MCU SPI
+     * peripherals do not support this cleanly in half-duplex mode.
+     * Use a parallel/MCU-bus interface if register reads are required. */
+    (void)cmd;
+    (void)param;
+    (void)paramSize;
     return ILI9341::Status::ErrorNotSupported;
 }

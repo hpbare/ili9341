@@ -83,7 +83,9 @@ public:
      */
     ILI9341::Status DispSleep(bool sleep);
     /** @brief Access the Hal this panel was constructed with. */
-    ILI9341::Hal    &GetHal() const { return this->platform_; }
+    ILI9341::Hal       &GetHal()       { return this->platform_; }
+    /** @brief Access the Hal this panel was constructed with (const overload). */
+    const ILI9341::Hal &GetHal() const { return this->platform_; }
 
 private:
     ILI9341::Io     &io_;
@@ -92,7 +94,7 @@ private:
 
     int             xGap_           = 0;
     int             yGap_           = 0;
-    uint8_t         fbBitsPerPixel_ = 16;
+    uint8_t         bytesPerPixel_  = 2;    // pre-divided (bitsPerPixel / 8), avoids runtime division in DrawBitmap
     uint8_t         madctlVal_      = 0;    // save current value of LCD_CMD_MADCTL register /* = uint8_t madctl_val; */
     uint8_t         colmodVal_      = 0;    // save current value of LCD_CMD_COLMOD /* = uint8_t colmod_val; */
 };
