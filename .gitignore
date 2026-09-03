@@ -1,0 +1,40 @@
+# Build output
+**/build/
+**/Build/
+cmake-build-*/
+
+# CubeIDE / Eclipse
+.settings/
+.mxproject
+mx.scratch
+
+# CubeMX backup files
+*.ioc.bak
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Toolchain / debug artifacts
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
+*.su
+*.list
+
+# CLion/CLT cache
+.idea/
+
+# Personal (not part of minimal buildable repo)
+**/.vscode/
+**/.devcontainer/
+**/Test/
+**/Tests/
+**/test/
+**/tests/
+**/private/
