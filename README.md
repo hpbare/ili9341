@@ -32,12 +32,12 @@ A platform-independent C++ 4-wire SPI driver for the ILI9341 LCD panel. All SPI/
 ```c++
 class MyHal : public ILI9341::Hal {
 public:
-    void DelayMs(uint32_t ms)                                  override { /* vTaskDelay / HAL_Delay / delay(ms) ... */ }
-    void SetGpioLevel(int gpio, bool level)                    override { /* gpio_set_level(...) */ }
-    void ReleasePin(int gpio)                                  override { /* gpio_reset_pin(...) */ }
-    void ConfigureOutputPin(int gpio)                          override { /* gpio_set_direction(...) */ }
-    ILI9341::Status SpiWrite(const uint8_t *data, size_t len)  override { /* blocking SPI transfer */ }
-    size_t GetMaxTransferSize()                                override { return 4092; /* e.g. DMA descriptor limit */ }
+    void DelayMs(uint32_t ms)                                    override { /* vTaskDelay / HAL_Delay / delay(ms) ... */ }
+    void SetGpioLevel(const ILI9341::GpioSpec &gpio, bool level) override { /* gpio_set_level(...) */ }
+    void ReleasePin(const ILI9341::GpioSpec &gpio)               override { /* gpio_reset_pin(...) */ }
+    void ConfigureOutputPin(const ILI9341::GpioSpec &gpio)       override { /* gpio_set_direction(...) */ }
+    ILI9341::Status SpiWrite(const uint8_t *data, size_t len)    override { /* blocking SPI transfer */ }
+    size_t GetMaxTransferSize() override { return 4092; /* e.g. DMA descriptor limit */ }
 
     // Optional: override SpiWriteAsync() / SpiWaitIdle() / RegisterTransDoneCallback()
     // if your platform supports non-blocking DMA transfers.
@@ -46,11 +46,11 @@ public:
 MyHal hal;
 
 ILI9341::SpiIoConfig ioConfig;
-ioConfig.dcGpio = 4; // Data/Command pin
+ioConfig.dcGpio = { nullptr, 4 }; // Data/Command pin (no port on ESP32-style platforms)
 ILI9341::SpiIo io(hal, ioConfig);
 
 ILI9341::Config config;
-config.resetGpioNum = 5;
+config.resetGpio     = { nullptr, 5 };
 config.rgbOrder      = ILI9341::RgbElementOrder::Bgr;
 config.bitsPerPixel  = ILI9341::BitsPerPixel::Bpp16;
 
@@ -87,9 +87,9 @@ panel.Mirror(true, false); // combine with SwapXY for 90/180/270° rotation
 | Method | Description | Required? |
 |-----------------------------------------|-------------------------------------------------------|-----|
 | `DelayMs(ms)`                           | Block for at least `ms` milliseconds.                 | Yes |
-| `SetGpioLevel(gpio, level)`             | Drive a pin high/low.                                 | Yes |
-| `ConfigureOutputPin(gpio)`              | Configure a pin as push-pull output.                  | Yes |
-| `ReleasePin(gpio)`                      | Return a pin to its unused state.                     | Yes |
+| `SetGpioLevel(const GpioSpec&, level)`  | Drive a pin high/low.                                 | Yes |
+| `ConfigureOutputPin(const GpioSpec&)`   | Configure a pin as push-pull output.                  | Yes |
+| `ReleasePin(const GpioSpec&)`           | Return a pin to its unused state.                     | Yes |
 | `SpiWrite(data, len)`                   | Blocking SPI write.                                   | Yes |
 | `GetMaxTransferSize()`                  | Max bytes per single SPI transaction (chunking limit).| Yes |
 | `SpiWriteAsync(data, len, isLastChunk)` | Non-blocking, queue-and-return write. `isLastChunk` marks the transaction whose completion should notify the caller. | No - defaults to `SpiWrite()` |
@@ -108,6 +108,7 @@ panel.Mirror(true, false); // combine with SwapXY for 90/180/270° rotation
 
 - `TxColor()` no longer blocks until the transfer finishes - see `Hal::RegisterTransDoneCallback()` above if you need a completion signal.
 - `RxParam` is unimplemented; the driver is write-only for now.
+- GPIO pins are identified by `ILI9341::GpioSpec { void *port; int pin; }` rather than a plain `int`, so both flat-numbering platforms (ESP32: leave `port = nullptr`) and port+pin platforms (STM32: e.g. `{ GPIOB, GPIO_PIN_5 }`) can represent a pin natively without bit-packing.
 
 ## License
 

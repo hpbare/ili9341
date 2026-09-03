@@ -70,9 +70,9 @@ ILI9341::Panel::Panel(ILI9341::Io &io, ILI9341::Hal &platform, const ILI9341::Co
     // Configure reset pin as output, if wired (mirrors gpio_config() in the
     // original factory function). Panel owns the pin number/level; platform_
     // just executes the primitive.
-    if (this->config_.resetGpioNum >= 0)
+    if (this->config_.resetGpio.IsValid())
     {
-        this->platform_.ConfigureOutputPin(this->config_.resetGpioNum);
+        this->platform_.ConfigureOutputPin(this->config_.resetGpio);
     }
 
     // RGB/BGR element order -> MADCTL BGR bit
@@ -96,19 +96,19 @@ ILI9341::Panel::Panel(ILI9341::Io &io, ILI9341::Hal &platform, const ILI9341::Co
 
 ILI9341::Panel::~Panel()
 {
-    if (this->config_.resetGpioNum >= 0)
+    if (this->config_.resetGpio.IsValid())
     {
-        this->platform_.ReleasePin(this->config_.resetGpioNum);
+        this->platform_.ReleasePin(this->config_.resetGpio);
     }
 }
 
 ILI9341::Status ILI9341::Panel::Reset(void)
 {
-    if (this->config_.resetGpioNum >= 0)
+    if (this->config_.resetGpio.IsValid())
     {
-        this->platform_.SetGpioLevel(this->config_.resetGpioNum, this->config_.flags.resetActiveHigh);
+        this->platform_.SetGpioLevel(this->config_.resetGpio, this->config_.flags.resetActiveHigh);
         this->platform_.DelayMs(10);
-        this->platform_.SetGpioLevel(this->config_.resetGpioNum, !this->config_.flags.resetActiveHigh);
+        this->platform_.SetGpioLevel(this->config_.resetGpio, !this->config_.flags.resetActiveHigh);
         this->platform_.DelayMs(10);
     }
     else

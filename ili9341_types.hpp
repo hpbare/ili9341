@@ -37,9 +37,17 @@ namespace ILI9341
         Bpp18 = 18, /*!< RGB666 */
     };
 
+    struct GpioSpec {
+        void *port = nullptr;
+        int  pin = -1;
+        bool IsValid() const {
+            return pin >= 0;
+        }
+    };
+
     struct Config
     {
-        int resetGpioNum = -1; /*!< GPIO used to reset the LCD panel, set to -1 if it's not used */
+        GpioSpec resetGpio; /*!< GPIO used to reset the LCD panel, set to -1 if it's not used */
         ILI9341::RgbElementOrder rgbOrder = ILI9341::RgbElementOrder::Rgb;
         ILI9341::BitsPerPixel bitsPerPixel = ILI9341::BitsPerPixel::Bpp16;
         const ILI9341::InitCommand *initCmds = nullptr;
@@ -52,7 +60,7 @@ namespace ILI9341
 
     struct SpiIoConfig
     {
-        int dcGpio = -1;
+        GpioSpec dcGpio;
         size_t maxChunkBytes = 0; /* 0 = ask Hal::GetMaxTransferSize() */
         struct
         {
@@ -109,11 +117,11 @@ namespace ILI9341
         /** @brief Block the calling task/thread for at least `ms` milliseconds. */
         virtual void DelayMs(uint32_t ms) = 0;
         /** @brief Drive a GPIO pin high or low. Pin must already be configured as output. */
-        virtual void SetGpioLevel(int gpio, bool level) = 0;
+        virtual void SetGpioLevel(const GpioSpec &gpio, bool level) = 0;
         /** @brief Release a pin previously configured by ConfigureOutputPin/Reset, returning it to its default (unused) state. */
-        virtual void ReleasePin(int gpio) = 0;
+        virtual void ReleasePin(const GpioSpec &gpio) = 0;
         /** @brief Configure a GPIO pin as push-pull output. Called once before the pin is first used. */
-        virtual void ConfigureOutputPin(int gpio) = 0;
+        virtual void ConfigureOutputPin(const GpioSpec &gpio) = 0;
         /** @brief Blocking SPI write of exactly `len` bytes from `data`. Returns once the transfer completes. */
         virtual ILI9341::Status SpiWrite(const uint8_t *data, size_t len) = 0;
         /**
